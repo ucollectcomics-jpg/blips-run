@@ -119,8 +119,8 @@ to{opacity:0;visibility:hidden}
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const music=document.getElementById("music"), tip=document.getElementById("startTip");
 
-// IFRAME / KEYBOARD FIX:
-// Click the game once to focus it. Then keyboard arrows control Blip instead of scrolling.
+// KEYBOARD / EMBED FIX:
+// Click the game once if needed. Arrow keys control Blip and should not scroll the page.
 document.documentElement.setAttribute("tabindex","0");
 document.body.setAttribute("tabindex","0");
 canvas.setAttribute("tabindex","0");
@@ -184,16 +184,7 @@ document.addEventListener("keydown",beginMusicAfterIntro,{once:true});
 
 
 let W=1280,H=720,scale=1;
-function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
-  W=canvas.width;
-  H=canvas.height;
-  scale=Math.min(W/1280,H/720);
-  if(typeof player !== "undefined" && player.onGround){
-    player.y = groundY()-player.h*scale;
-  }
-}
+function resize(){ canvas.width=innerWidth; canvas.height=innerHeight; W=canvas.width; H=canvas.height; scale=Math.min(W/1280,H/720); }
 addEventListener("resize",resize); resize();
 
 let keys={}, started=false, gameOver=false, bgX=0, score=0, power=100, hitCooldown=0, flashHit=0;
@@ -263,7 +254,9 @@ function handleGameKeyUp(e){
   }
 
   keys[key]=false;
-  if(key==="ArrowDown") player.duck=false;
+  if(key==="ArrowDown"){
+    player.duck=false;
+  }
 
   return false;
 }
