@@ -1,497 +1,101 @@
-<!doctype html> 
-<html>
+<!doctype html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Blip's Run</title>
+
 <style>
-html,body{margin:0;overflow:hidden;background:#16003d;font-family:Arial,Helvetica,sans-serif;touch-action:none;overscroll-behavior:none;width:100%;height:100%;}
-canvas{display:block;width:100vw;height:100vh;background:#6421e8;outline:none;touch-action:none;}
-
-
-
-
-#startTip{position:fixed;top:12px;left:50%;transform:translateX(-50%);color:white;background:rgba(0,0,0,.58);border:2px solid #9cff00;border-radius:16px;padding:8px 14px;font-size:16px;text-align:center}
-@media(max-width:900px){}
-
-#introScreen{
-position:fixed;
-inset:0;
-z-index:999999;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
+html,body{
+margin:0;
+padding:0;
+overflow:hidden;
 background:#16003d;
-overflow:hidden;
-}
-#introScreen::before{
-content:"";
-position:absolute;
-inset:0;
-background:url("loading_background.png") center center / cover no-repeat;
-filter:saturate(1.2) brightness(.78);
-transform:scale(1.04);
-}
-#introScreen::after{
-content:"";
-position:absolute;
-inset:0;
-background:radial-gradient(circle at center, rgba(255,0,255,.10), rgba(15,0,40,.68));
-}
-#introContent{
-position:relative;
-z-index:2;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-width:min(92vw,1100px);
-padding:20px;
-}
-#introLogo{
-width:min(86vw,880px);
-max-height:46vh;
-object-fit:contain;
-filter:drop-shadow(0 0 20px #ff00ff) drop-shadow(0 0 15px #9cff00);
-animation:blipPulse 1.4s ease-in-out infinite alternate;
-}
-#loadingWrap{
-width:min(74vw,760px);
-height:34px;
-border:4px solid #ffffff;
-border-radius:22px;
-background:rgba(25,0,55,.85);
-box-shadow:0 0 16px #ffffff, 0 0 24px #9cff00;
-overflow:hidden;
-margin-top:18px;
-}
-#loadingFill{
+width:100%;
 height:100%;
-width:0%;
-background:linear-gradient(90deg,#ff174d,#ff4de8,#9cff00);
-border-radius:18px;
-box-shadow:0 0 18px #ff174d;
-}
-#loadingText{
-margin-top:15px;
-font-size:clamp(18px,3vw,32px);
-font-weight:900;
-color:#fff;
-text-shadow:0 0 8px #ff00ff,0 0 12px #9cff00;
-letter-spacing:1px;
-}
-@keyframes blipPulse{
-from{transform:scale(1)}
-to{transform:scale(1.035)}
-}
-.introFadeOut{
-animation:introFade .7s forwards ease;
-}
-@keyframes introFade{
-to{opacity:0;visibility:hidden}
+font-family:Arial,Helvetica,sans-serif;
 }
 
+body{
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+#gameWrap{
+position:relative;
+width:100vw;
+height:56.25vw;
+max-height:100vh;
+max-width:177.78vh;
+overflow:hidden;
+background:#16003d;
+}
+
+canvas{
+display:block;
+width:100%;
+height:100%;
+background:#6421e8;
+}
+
+#startTip{
+position:absolute;
+top:12px;
+left:50%;
+transform:translateX(-50%);
+z-index:5;
+color:white;
+background:rgba(0,0,0,.55);
+border:2px solid #99ff00;
+border-radius:16px;
+padding:8px 14px;
+font-size:16px;
+text-align:center;
+}
+
+@media(max-width:900px){
+#startTip{
+font-size:12px;
+padding:6px 10px;
+}
+}
 </style>
 </head>
+
 <body>
 
-<div id="introScreen">
-  <div id="introContent">
-    <img id="introLogo" src="blips_run_logo.png" alt="Blip's Run">
-    <div id="loadingWrap"><div id="loadingFill"></div></div>
-    <div id="loadingText">LOADING 0%</div>
-  </div>
+<div id="gameWrap">
+
+<div id="startTip">
+Use keyboard arrows: Right = run • Up = jump • Down = duck • Collect stars for +10 life
 </div>
 
-<canvas id="game" tabindex="0"></canvas>
-<div id="startTip">Use keyboard arrows: Right = run • Up = jump • Down = duck • Collect stars for +10 life</div>
+<canvas id="game"></canvas>
+
 </div>
-<audio id="music" src="music.mp3" loop></audio>
+
 <script>
-const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
-const music=document.getElementById("music"), tip=document.getElementById("startTip");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-// KEYBOARD + EMBED FIX:
-// Keeps keyboard control active and stops arrow keys from scrolling the website page.
-document.documentElement.setAttribute("tabindex","0");
-document.body.setAttribute("tabindex","0");
-canvas.setAttribute("tabindex","0");
-
-function lockGameFocus(){
-  try { window.focus(); } catch(e) {}
-  try { canvas.focus({preventScroll:true}); } catch(e) {
-    try { canvas.focus(); } catch(err) {}
-  }
+function resizeGame(){
+canvas.width=1280;
+canvas.height=720;
 }
 
-window.addEventListener("load", lockGameFocus);
-window.addEventListener("focus", lockGameFocus);
-document.addEventListener("pointerdown", lockGameFocus, {capture:true});
-document.addEventListener("mousedown", lockGameFocus, {capture:true});
-document.addEventListener("touchstart", function(){ lockGameFocus(); }, {capture:true, passive:false});
-function tryPlayMusic(){
-  music.volume=.50;
-  music.loop=true;
-  music.play().catch(()=>{});
+resizeGame();
+window.addEventListener("resize",resizeGame);
+
+document.addEventListener("keydown",function(e){
+if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)){
+e.preventDefault();
 }
-window.addEventListener("load", tryPlayMusic);
-document.addEventListener("pointerdown", tryPlayMusic, {once:true});
-document.addEventListener("keydown", tryPlayMusic, {once:true});
+},{passive:false});
 
-const bg=new Image(); bg.src="background.png";
-const runSheet=new Image(); runSheet.src="runner_sheet_right.png";
-const houseImg=new Image(); houseImg.src="house.png";
-const shipImg=new Image(); shipImg.src="ship_left.png";
+/* KEEP THE REST OF YOUR ORIGINAL GAME CODE BELOW THIS LINE */
 
-
-let introDone=false;
-let introProgress=0;
-const introTimer=setInterval(()=>{
-  introProgress += 2;
-  const fill=document.getElementById("loadingFill");
-  const text=document.getElementById("loadingText");
-  if(fill) fill.style.width=Math.min(introProgress,100)+"%";
-  if(text) text.textContent="LOADING "+Math.min(introProgress,100)+"%";
-  if(introProgress>=100){
-    clearInterval(introTimer);
-    const intro=document.getElementById("introScreen");
-    if(intro){
-      intro.classList.add("introFadeOut");
-      setTimeout(()=>{intro.remove(); introDone=true;},700);
-    }else{
-      introDone=true;
-    }
-  }
-},45);
-
-
-function beginMusicAfterIntro(){
-  music.volume=.50;
-  music.loop=true;
-  music.play().catch(()=>{});
-}
-setTimeout(beginMusicAfterIntro,5200);
-document.addEventListener("pointerdown",beginMusicAfterIntro,{once:true});
-document.addEventListener("keydown",beginMusicAfterIntro,{once:true});
-
-
-let W=1280,H=720,scale=1;
-function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
-  W=canvas.width;
-  H=canvas.height;
-  scale=Math.min(W/1280,H/720);
-
-  if(typeof player !== "undefined" && player.onGround){
-    player.y = groundY() - player.h * scale;
-  }
-}
-addEventListener("resize",resize); resize();
-
-let keys={}, started=false, gameOver=false, bgX=0, score=0, power=100, hitCooldown=0, flashHit=0;
-let player={x:125,y:0,w:198,h:154,vy:0,onGround:true,duck:false,frame:0};
-let obstacles=[], stars=[], floatTexts=[];
-let spawnTimer=95, starTimer=150, speed=5.5, obstacleCleared=0, difficultyLevel=1;
-
-function startAudio(){
-  if(!started){ started=true; music.volume=.50; music.play().catch(()=>{}); tip.style.display="none"; }
-}
-function tone(freq=440,type="sine",dur=.18,vol=.18){
-  try{
-    const ac=new (window.AudioContext||window.webkitAudioContext)();
-    const osc=ac.createOscillator(), gain=ac.createGain();
-    osc.type=type; osc.frequency.setValueAtTime(freq,ac.currentTime);
-    gain.gain.setValueAtTime(vol,ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001,ac.currentTime+dur);
-    osc.connect(gain); gain.connect(ac.destination);
-    osc.start(); osc.stop(ac.currentTime+dur);
-  }catch(e){}
-}
-function hitSound(){ tone(90,"square",.30,.26); }
-function starSound(){ tone(640,"triangle",.16,.20); setTimeout(()=>tone(860,"triangle",.13,.16),80); }
-
-function handleGameKeyDown(e){
-  const key = e.code === "Space" ? " " : e.key;
-  const isGameKey = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(key);
-
-  if(isGameKey){
-    e.preventDefault();
-    e.stopPropagation();
-    lockGameFocus();
-  }
-
-  startAudio();
-  keys[key]=true;
-
-  if(gameOver && ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(key)){
-    restart();
-    return false;
-  }
-
-  if(key==="ArrowUp" && player.onGround && !gameOver){
-    player.vy=-20.5;
-    player.onGround=false;
-  }
-
-  if(key==="ArrowDown"){
-    player.duck=true;
-  }
-
-  if(key===" " && gameOver){
-    restart();
-  }
-
-  return false;
-}
-window.addEventListener("keydown", handleGameKeyDown, {capture:true});
-document.addEventListener("keydown", handleGameKeyDown, {capture:true});
-function handleGameKeyUp(e){
-  const key = e.code === "Space" ? " " : e.key;
-  const isGameKey = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(key);
-
-  if(isGameKey){
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  keys[key]=false;
-  if(key==="ArrowDown"){
-    player.duck=false;
-  }
-
-  return false;
-}
-window.addEventListener("keyup", handleGameKeyUp, {capture:true});
-document.addEventListener("keyup", handleGameKeyUp, {capture:true});
-
-function groundY(){return H-118*scale;}
-function restart(){
-  gameOver=false; score=0; power=100; obstacles=[]; stars=[]; floatTexts=[];
-  spawnTimer=95; starTimer=150; speed=5.5; obstacleCleared=0; difficultyLevel=1;
-  hitCooldown=0; flashHit=0;
-  player.x=125; player.vy=0; player.onGround=true; player.duck=false; player.frame=0;
-  player.y=groundY()-player.h*scale;
-}
-function applyDifficulty(){
-  difficultyLevel = 1 + Math.floor(obstacleCleared/20);
-  speed = Math.min(5.5 + (difficultyLevel-1)*0.75, 10.2);
-}
-function spawnObstacle(){
-  const kind=Math.random()<.56 ? "house" : "ship";
-  if(kind==="house"){
-    let h=(124 + Math.min(difficultyLevel*3,24))*scale, w=(152 + Math.min(difficultyLevel*4,28))*scale;
-    obstacles.push({kind,x:W+160*scale,y:groundY()-h,w,h,damage:20,hit:false,scored:false});
-  }else{
-    let h=(108 + Math.min(difficultyLevel*3,18))*scale, w=(220 + Math.min(difficultyLevel*7,45))*scale;
-    obstacles.push({kind,x:W+220*scale,y:groundY()-172*scale,w,h,damage:10,hit:false,scored:false});
-  }
-}
-function spawnStar(){
-  const y = groundY() - (195 + Math.random()*85)*scale;
-  stars.push({x:W+160*scale,y,w:56*scale,h:56*scale,collected:false,phase:Math.random()*6});
-}
-function drawBackground(){
-  const bh=H, bw=bg.width ? bg.width*(H/bg.height) : W;
-  bgX -= speed*.42;
-  if(bgX<=-bw) bgX+=bw;
-  if(bg.complete && bg.width){
-    ctx.drawImage(bg,bgX,0,bw,bh); ctx.drawImage(bg,bgX+bw,0,bw,bh); ctx.drawImage(bg,bgX+2*bw,0,bw,bh);
-  }else{
-    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#7431ff"); g.addColorStop(1,"#241050");
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  }
-  ctx.fillStyle="rgba(255,255,255,.035)"; ctx.fillRect(0,0,W,H);
-}
-function drawPower(){
-  const x=28*scale,y=26*scale,w=455*scale,h=58*scale;
-  ctx.save();
-  ctx.shadowColor="#ffffff"; ctx.shadowBlur=10*scale;
-  ctx.fillStyle="rgba(18,0,45,.94)"; ctx.strokeStyle="#ffffff"; ctx.lineWidth=4*scale;
-  ctx.beginPath(); ctx.roundRect(x,y,w,h,18*scale); ctx.fill(); ctx.stroke();
-  ctx.shadowBlur=0;
-  ctx.fillStyle="#fff"; ctx.font=`bold ${21*scale}px Arial`; ctx.fillText("LIFE / CALM POWER",x+16*scale,y-7*scale);
-  ctx.fillStyle="#160018"; ctx.beginPath(); ctx.roundRect(x+16*scale,y+15*scale,w-32*scale,h-30*scale,14*scale); ctx.fill();
-  const redW=Math.max(0,power)/100*(w-32*scale);
-  ctx.fillStyle="#ff173d"; ctx.shadowColor="#ff173d"; ctx.shadowBlur=11*scale;
-  ctx.beginPath(); ctx.roundRect(x+16*scale,y+15*scale,redW,h-30*scale,14*scale); ctx.fill();
-  ctx.shadowBlur=0;
-  ctx.strokeStyle="#9bff00"; ctx.lineWidth=2.5*scale; ctx.beginPath(); ctx.roundRect(x+16*scale,y+15*scale,w-32*scale,h-30*scale,14*scale); ctx.stroke();
-  ctx.fillStyle="white"; ctx.font=`bold ${25*scale}px Arial`;
-  ctx.fillText(power+" / 100",x+w+18*scale,y+40*scale);
-  ctx.fillText("Score: "+score,28*scale,122*scale);
-  ctx.font=`bold ${18*scale}px Arial`;
-  ctx.fillText("Level: "+difficultyLevel+"   Cleared: "+obstacleCleared,28*scale,150*scale);
-  ctx.restore();
-}
-function drawPlayer(){
-  const gy=groundY();
-  if(!player.y) player.y=gy-player.h*scale;
-  const drawW=player.duck ? 174*scale : 198*scale;
-  const drawH=player.duck ? 102*scale : 154*scale;
-  const px=player.x*scale, py=player.duck ? gy-drawH : player.y;
-  const f=Math.floor(player.frame)%8;
-  ctx.drawImage(runSheet,f*220,0,220,190,px,py,drawW,drawH);
-}
-function drawObstacle(o){
-  if(o.kind==="house") ctx.drawImage(houseImg,o.x,o.y,o.w,o.h);
-  else ctx.drawImage(shipImg,o.x,o.y,o.w,o.h);
-}
-function drawStar(s){
-  const cx=s.x+s.w/2, cy=s.y+s.h/2 + Math.sin((performance.now()/220)+s.phase)*8*scale;
-  ctx.save();
-  ctx.shadowColor="#fff36b"; ctx.shadowBlur=18*scale;
-  ctx.fillStyle="#ffea2d"; ctx.strokeStyle="#ff9c00"; ctx.lineWidth=4*scale;
-  ctx.beginPath();
-  for(let i=0;i<10;i++){
-    const a=-Math.PI/2 + i*Math.PI/5;
-    const r=(i%2===0?28:13)*scale;
-    const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.shadowBlur=0;
-  ctx.fillStyle="#8a2b00"; ctx.font=`bold ${17*scale}px Arial`; ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText("+10",cx,cy+2*scale);
-  ctx.textAlign="left"; ctx.textBaseline="alphabetic";
-  ctx.restore();
-}
-function rects(a,b){return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;}
-
-// Smaller, centered hit box so life is ONLY deducted on a clear visible touch.
-function playerDamageRect(){
-  const drawW=player.duck ? 174*scale : 198*scale;
-  const drawH=player.duck ? 102*scale : 154*scale;
-  const px=player.x*scale;
-  const py=player.duck ? groundY()-drawH : player.y;
-  return {
-    x:px + drawW*.30,
-    y:py + drawH*.25,
-    w:drawW*.42,
-    h:drawH*.54
-  };
-}
-function playerCollectRect(){
-  const drawW=player.duck ? 174*scale : 198*scale;
-  const drawH=player.duck ? 102*scale : 154*scale;
-  const px=player.x*scale;
-  const py=player.duck ? groundY()-drawH : player.y;
-  return {x:px+drawW*.16,y:py+drawH*.08,w:drawW*.68,h:drawH*.76};
-}
-function obstacleDamageRect(o){
-  if(o.kind==="house"){
-    return {x:o.x+o.w*.18,y:o.y+o.h*.22,w:o.w*.58,h:o.h*.60};
-  }else{
-    // Smaller ship body hit box, avoiding empty transparent space around the ship.
-    return {x:o.x+o.w*.20,y:o.y+o.h*.28,w:o.w*.58,h:o.h*.44};
-  }
-}
-function starRect(s){
-  const bob=Math.sin((performance.now()/220)+s.phase)*8*scale;
-  return {x:s.x+8*scale,y:s.y+8*scale+bob,w:s.w-16*scale,h:s.h-16*scale};
-}
-function drawFloatTexts(){
-  floatTexts.forEach(t=>{
-    ctx.save();
-    ctx.globalAlpha=t.life/45;
-    ctx.fillStyle=t.color;
-    ctx.font=`bold ${26*scale}px Arial`;
-    ctx.fillText(t.text,t.x,t.y);
-    ctx.restore();
-  });
-}
-function update(){
-  if(gameOver) return;
-  if(hitCooldown>0) hitCooldown--;
-  if(flashHit>0) flashHit--;
-
-  const gy=groundY();
-  if(keys.ArrowRight) player.x=Math.min(player.x+4.7,365);
-  if(keys.ArrowLeft) player.x=Math.max(player.x-4.7,70);
-  player.duck=!!keys.ArrowDown;
-
-  player.vy+=.85;
-  player.y+=player.vy*scale;
-  if(player.y>=gy-player.h*scale){ player.y=gy-player.h*scale; player.vy=0; player.onGround=true; }
-  else player.onGround=false;
-  player.frame+=.35;
-
-  spawnTimer--;
-  if(spawnTimer<=0){
-    spawnObstacle();
-    const minGap=Math.max(62,108-(difficultyLevel-1)*7);
-    const range=Math.max(38,78-(difficultyLevel-1)*4);
-    spawnTimer=minGap+Math.floor(Math.random()*range);
-  }
-
-  starTimer--;
-  if(starTimer<=0){
-    spawnStar();
-    starTimer=Math.max(120,210-(difficultyLevel-1)*8)+Math.floor(Math.random()*80);
-  }
-
-  const pDamage=playerDamageRect();
-  const pCollect=playerCollectRect();
-
-  obstacles.forEach(o=>{
-    o.x-=speed*scale;
-    if(!o.hit && rects(pDamage,obstacleDamageRect(o)) && hitCooldown<=0){
-      o.hit=true; hitCooldown=34; flashHit=18; hitSound();
-      power=Math.max(0,power-o.damage);
-      floatTexts.push({text:"-"+o.damage,x:player.x*scale+80*scale,y:player.y-18*scale,life:45,color:"#ff173d"});
-      if(power<=0) gameOver=true;
-    }
-    if(!o.scored && o.x+o.w < player.x*scale){
-      o.scored=true; score+=10; obstacleCleared++; applyDifficulty();
-      if(obstacleCleared%20===0){
-        floatTexts.push({text:"LEVEL UP!",x:W/2-70*scale,y:120*scale,life:70,color:"#9bff00"});
-        tone(760,"triangle",.18,.18); setTimeout(()=>tone(980,"triangle",.18,.18),100);
-      }
-    }
-  });
-  obstacles=obstacles.filter(o=>o.x>-320*scale);
-
-  stars.forEach(s=>{
-    s.x-=speed*scale;
-    if(!s.collected && rects(pCollect,starRect(s))){
-      s.collected=true;
-      power=Math.min(100,power+10);
-      score+=10;
-      starSound();
-      floatTexts.push({text:"+10",x:s.x,y:s.y,life:45,color:"#ffea2d"});
-    }
-  });
-  stars=stars.filter(s=>s.x>-120*scale && !s.collected);
-
-  floatTexts.forEach(t=>{t.y-=.9*scale; t.life--;});
-  floatTexts=floatTexts.filter(t=>t.life>0);
-}
-function drawGameOver(){
-  if(flashHit>0){ctx.fillStyle="rgba(255,0,40,.20)"; ctx.fillRect(0,0,W,H);}
-  if(!gameOver) return;
-  ctx.fillStyle="rgba(20,0,45,.72)"; ctx.fillRect(0,0,W,H);
-  ctx.textAlign="center";
-  ctx.fillStyle="#ff173d"; ctx.font=`bold ${58*scale}px Arial`; ctx.fillText("LIFE BAR EMPTY",W/2,H/2-55*scale);
-  ctx.fillStyle="white"; ctx.font=`${28*scale}px Arial`; ctx.fillText("Final Score: "+score,W/2,H/2);
-  ctx.fillText("Obstacles Cleared: "+obstacleCleared,W/2,H/2+40*scale);
-  ctx.fillText("Press SPACE or any direction to restart",W/2,H/2+85*scale);
-  ctx.textAlign="left";
-}
-function loop(){
-  drawBackground();
-  update();
-  stars.forEach(drawStar);
-  obstacles.forEach(drawObstacle);
-  drawPlayer();
-  drawFloatTexts();
-  drawPower();
-  drawGameOver();
-  requestAnimationFrame(loop);
-}
-restart();
-startAudio();
-loop();
 </script>
+
 </body>
 </html>
