@@ -1,15 +1,15 @@
-<!doctype html> 
+<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>UC Bear Calm Runner</title>
 <style>
-html,body{margin:0;overflow:hidden;background:#16003d;font-family:Arial,Helvetica,sans-serif;touch-action:none;overscroll-behavior:none;width:100%;height:100%;}
-canvas{display:block;width:100vw;height:100vh;background:#6421e8;outline:none;touch-action:none;}
+html,body{margin:0;overflow:hidden;background:#16003d;font-family:Arial,Helvetica,sans-serif;touch-action:none}
+canvas{display:block;width:100vw;height:100vh;background:#6421e8}
 #mobileControls{position:fixed;bottom:16px;left:0;right:0;display:none;justify-content:space-between;align-items:end;padding:0 22px;pointer-events:none}
 .pad{display:grid;grid-template-columns:68px 68px 68px;grid-template-rows:68px 68px;gap:8px;pointer-events:auto}
-.btn{border:3px solid #99ff00;background:rgba(90,0,160,.74);color:white;border-radius:20px;font-size:32px;font-weight:bold;box-shadow:0 0 15px #99ff00;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none;}
+.btn{border:3px solid #99ff00;background:rgba(90,0,160,.74);color:white;border-radius:20px;font-size:32px;font-weight:bold;box-shadow:0 0 15px #99ff00;display:flex;align-items:center;justify-content:center;user-select:none}
 .up{grid-column:2;grid-row:1}.left{grid-column:1;grid-row:2}.down{grid-column:2;grid-row:2}.right{grid-column:3;grid-row:2}
 #startTip{position:fixed;top:12px;left:50%;transform:translateX(-50%);color:white;background:rgba(0,0,0,.58);border:2px solid #9cff00;border-radius:16px;padding:8px 14px;font-size:16px;text-align:center}
 @media(max-width:900px){#mobileControls{display:flex}}
@@ -104,7 +104,7 @@ to{opacity:0;visibility:hidden}
   </div>
 </div>
 
-<canvas id="game" tabindex="0"></canvas>
+<canvas id="game"></canvas>
 <div id="startTip">Right Arrow / ▶ to run • Up to jump • Down to duck • Collect stars for +10 life</div>
 <div id="mobileControls">
   <div class="pad">
@@ -118,25 +118,6 @@ to{opacity:0;visibility:hidden}
 <script>
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const music=document.getElementById("music"), tip=document.getElementById("startTip");
-
-// HOSTINGER IFRAME FIX:
-// Keep the game focused so arrow keys control Blip instead of scrolling the page.
-document.documentElement.setAttribute("tabindex","0");
-document.body.setAttribute("tabindex","0");
-canvas.setAttribute("tabindex","0");
-
-function lockGameFocus(){
-  try { window.focus(); } catch(e) {}
-  try { canvas.focus({preventScroll:true}); } catch(e) {
-    try { canvas.focus(); } catch(err) {}
-  }
-}
-
-window.addEventListener("load", lockGameFocus);
-window.addEventListener("focus", lockGameFocus);
-document.addEventListener("pointerdown", lockGameFocus, {capture:true});
-document.addEventListener("mousedown", lockGameFocus, {capture:true});
-document.addEventListener("touchstart", function(e){ lockGameFocus(); }, {capture:true, passive:false});
 function tryPlayMusic(){
   music.volume=.50;
   music.loop=true;
@@ -209,69 +190,27 @@ function tone(freq=440,type="sine",dur=.18,vol=.18){
 function hitSound(){ tone(90,"square",.30,.26); }
 function starSound(){ tone(640,"triangle",.16,.20); setTimeout(()=>tone(860,"triangle",.13,.16),80); }
 
-function handleGameKeyDown(e){
-  const key = e.code === "Space" ? " " : e.key;
-  const isGameKey = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(key);
-
-  if(isGameKey){
-    e.preventDefault();
-    e.stopPropagation();
-    lockGameFocus();
-  }
-
-  startAudio();
-  keys[key]=true;
-
-  if(gameOver && ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(key)){
-    restart();
-    return false;
-  }
-
-  if(key==="ArrowUp" && player.onGround && !gameOver){
-    player.vy=-20.5;
-    player.onGround=false;
-  }
-
-  if(key==="ArrowDown"){
-    player.duck=true;
-  }
-
-  if(key===" " && gameOver){
-    restart();
-  }
-
-  return false;
-}
-window.addEventListener("keydown", handleGameKeyDown, {capture:true});
-document.addEventListener("keydown", handleGameKeyDown, {capture:true});
-function handleGameKeyUp(e){
-  const key = e.code === "Space" ? " " : e.key;
-  const isGameKey = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(key);
-
-  if(isGameKey){
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  keys[key]=false;
-  if(key==="ArrowDown") player.duck=false;
-
-  return false;
-}
-window.addEventListener("keyup", handleGameKeyUp, {capture:true});
-document.addEventListener("keyup", handleGameKeyUp, {capture:true});
+document.addEventListener("keydown",e=>{
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
+  startAudio(); keys[e.key]=true;
+  if(gameOver && ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){restart(); return;}
+  if(e.key==="ArrowUp" && player.onGround && !gameOver){player.vy=-20.5; player.onGround=false;}
+  if(e.key==="ArrowDown") player.duck=true;
+  if(e.key===" " && gameOver) restart();
+});
+document.addEventListener("keyup",e=>{ keys[e.key]=false; if(e.key==="ArrowDown") player.duck=false; });
 
 document.querySelectorAll(".btn").forEach(b=>{
   b.addEventListener("pointerdown",e=>{
-    e.preventDefault(); e.stopPropagation(); lockGameFocus(); startAudio();
+    e.preventDefault(); startAudio();
     const k=b.dataset.key;
     if(gameOver){restart(); return;}
     keys[k]=true;
     if(k==="ArrowUp" && player.onGround){player.vy=-20.5; player.onGround=false;}
     if(k==="ArrowDown") player.duck=true;
   });
-  b.addEventListener("pointerup",e=>{ e.preventDefault(); e.stopPropagation(); const k=b.dataset.key; keys[k]=false; if(k==="ArrowDown") player.duck=false; });
-  b.addEventListener("pointerleave",e=>{ e.preventDefault(); e.stopPropagation(); const k=b.dataset.key; keys[k]=false; if(k==="ArrowDown") player.duck=false; });
+  b.addEventListener("pointerup",e=>{ const k=b.dataset.key; keys[k]=false; if(k==="ArrowDown") player.duck=false; });
+  b.addEventListener("pointerleave",e=>{ const k=b.dataset.key; keys[k]=false; if(k==="ArrowDown") player.duck=false; });
 });
 
 function groundY(){return H-118*scale;}
