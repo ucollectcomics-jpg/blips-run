@@ -274,7 +274,50 @@ document.querySelectorAll(".btn").forEach(b=>{
   b.addEventListener("pointerleave",e=>{ e.preventDefault(); e.stopPropagation(); const k=b.dataset.key; keys[k]=false; if(k==="ArrowDown") player.duck=false; });
 });
 
-function groundY(){return H-118*scale;}
+// Allows Hostinger buttons under the game to control Blip
+window.addEventListener("message", function(event){
+  const action = event.data;
+
+  startAudio();
+
+  if(gameOver && ["left","right","up","down","jump","duck"].includes(action)){
+    restart();
+    return;
+  }
+
+  if(action === "up" || action === "jump"){
+    if(player.onGround && !gameOver){
+      player.vy = -20.5;
+      player.onGround = false;
+    }
+  }
+
+  if(action === "down" || action === "duck"){
+    player.duck = true;
+    keys["ArrowDown"] = true;
+
+    setTimeout(function(){
+      player.duck = false;
+      keys["ArrowDown"] = false;
+    }, 450);
+  }
+
+  if(action === "left"){
+    keys["ArrowLeft"] = true;
+
+    setTimeout(function(){
+      keys["ArrowLeft"] = false;
+    }, 250);
+  }
+
+  if(action === "right"){
+    keys["ArrowRight"] = true;
+
+    setTimeout(function(){
+      keys["ArrowRight"] = false;
+    }, 250);
+  }
+});function groundY(){return H-118*scale;}
 function restart(){
   gameOver=false; score=0; power=100; obstacles=[]; stars=[]; floatTexts=[];
   spawnTimer=95; starTimer=150; speed=5.5; obstacleCleared=0; difficultyLevel=1;
